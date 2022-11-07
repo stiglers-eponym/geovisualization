@@ -234,9 +234,9 @@ class VisualizeAll:
         self.files = files
         self.analyzers = [GpxAnalyze(file) for file in files]
         lat_min = min(np.nanmin(a.lat) for a in self.analyzers)
-        lat_max = min(np.nanmax(a.lat) for a in self.analyzers)
+        lat_max = max(np.nanmax(a.lat) for a in self.analyzers)
         lon_min = min(np.nanmin(a.lon) for a in self.analyzers)
-        lon_max = min(np.nanmax(a.lon) for a in self.analyzers)
+        lon_max = max(np.nanmax(a.lon) for a in self.analyzers)
         self.extent = [lon_min, lon_max, lat_min, lat_max]
         self.ref_lat = (lat_min + lat_max)/2
         self.ref_lon = (lon_min + lon_max)/2
@@ -253,7 +253,7 @@ class VisualizeAll:
             print()
 
 
-    def plot_pyqtgraph(self, tile_zoom=12, tile_visualization="surface"):
+    def plot_pyqtgraph(self, tile_zoom=11, tile_visualization="scatter"):
         self.app = QApplication([])
         self.widget = gl.GLViewWidget()
         self.widget.show()
@@ -331,31 +331,38 @@ class VisualizeAll:
         self.widget.addItem(self.sp_geodata)
 
 
-    def pyqtgraph_add_elevation_tile_at(self, lon, lat, zoom=12, visualization="surface"):
+    def pyqtgraph_add_elevation_tile_at(self, lon, lat, zoom=11, visualization="surface"):
         self.pyqtgraph_add_elevation_tile(*lonlat_to_xytiles(zoom, lon, lat), zoom, visualization=visualization)
 
 
-    def pyqtgraph_add_elevation_tile(self, xtile, ytile, zoom=12, visualization="surface"):
+    def pyqtgraph_add_elevation_tile(self, xtile, ytile, zoom=11, visualization="surface"):
         lon, lat, z = read_terrarium_tile(zoom, xtile, ytile)
-        x, y, z = self.to_xyz(lon, lat, z)
+        x, y, z = self.to_xyz(*np.meshgrid(lon, lat), z)
         z_normalized = 1e3 / ((self.z_max - self.z_baseline) * self.z_scale) * z
         match visualization:
             case "surface":
-                surfplot_tile = gl.GLSurfacePlotItem(x=x, y=y, z=z.T-0.02, colors=plt.cm.viridis(z_normalized.T))
+                z_normalized = 1e3 / ((self.z_max - self.z_baseline) * self.z_scale) * z
+                surfplot_tile = gl.GLSurfacePlotItem(x=x[x.shape[0]//2,:], y=y[:,y.shape[1]//2], z=z.T-0.02, colors=plt.cm.viridis(z_normalized.T))
                 self.widget.addItem(surfplot_tile)
                 self.tile_surf_plots.append(surfplot_tile)
             case "scatter":
-                pos = np.array([*np.meshgrid(x, y), z]).transpose((1,2,0)).reshape((-1,3))
+                pos = np.array([x, y, z]).transpose((1,2,0)).reshape((-1,3))
                 scatterplot_tile = gl.GLScatterPlotItem(pos=pos, color=plt.cm.viridis(z_normalized.flat), pxMode=False, size=0.02)
                 self.widget.addItem(scatterplot_tile)
                 self.tile_scatter_plots.append(scatterplot_tile)
 
 
-    def pyqtgraph_add_all_tiles(self, zoom=12, visualization="surface"):
+    def pyqtgraph_add_all_tiles(self, zoom=11, visualization="surface"):
         for filename in os.listdir(conf.TILES_PATH):
             match = re.match(f"terrarium_{zoom}_([0-9]+)_([0-9]+)\\.png$", filename)
             if match is None:
                 continue
             xtile = int(match.group(1))
             ytile = int(match.group(2))
-            self.pyqtgraph_add_elevation_tile(xtile, ytile, zoom, visualization=visualization)
+            n = 1 << zoom
+            lon_min = np.pi*(2*xtile/n - 1)
+            lon_max = np.pi*(2*(xtile+255/256)/n - 1)
+            lat_max = np.arctan(np.sinh(np.pi*(1-2*ytile/n)))
+            lat_min = np.arctan(np.sinh(np.pi*(1-2*(ytile+255/256)/n)))
+            if lon_max >= self.extent[0] and lon_min <= self.extent[1] and lat_max >= self.extent[2] and lat_min <= self.extent[3]:
+                self.pyqtgraph_add_elevation_tile(xtile, ytile, zoom, visualization=visualization)

@@ -230,7 +230,7 @@ class VisualizeGpx:
 
 
 class VisualizeAll:
-    def __init__(self, *files):
+    def __init__(self, *files, zscale=2):
         self.files = files
         self.analyzers = [GpxAnalyze(file) for file in files]
         lat_min = min(np.nanmin(a.lat) for a in self.analyzers)
@@ -242,7 +242,7 @@ class VisualizeAll:
         self.ref_lon = (lon_min + lon_max)/2
         self.gpx_visualizers = []
         self.z_baseline = np.nanmin([np.nanmin(a.elevation) for a in self.analyzers]) - 10
-        self.z_scale = 2
+        self.z_scale = zscale
         self.z_max = 1.1*np.nanmax([np.nanmax(a.elevation) for a in self.analyzers])
 
 

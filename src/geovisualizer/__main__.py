@@ -9,9 +9,10 @@ def parse():
     parser.add_argument("--pyqtgraph", type=int, metavar="0 or 1", default=1, help="show PyQtGraph 3d plot")
     parser.add_argument("--zoom", type=int, metavar="int", default=11, help="zoom level for elevation tiles")
     parser.add_argument("--tile_visualization", type=str, choices=("surface", "scatter"), default="surface", help="elevation visualization")
+    parser.add_argument("--zscale", type=float, default=2., help="topography scaling")
     parser.add_argument("files", type=str, nargs="+", help="GPX files")
     args = parser.parse_args()
-    main(*args.files, mpl=args.mpl, pyqtgraph=args.pyqtgraph, separate_map=args.separate_map, tile_zoom=args.zoom, tile_visualization=args.tile_visualization)
+    main(*args.files, mpl=args.mpl, pyqtgraph=args.pyqtgraph, separate_map=args.separate_map, tile_zoom=args.zoom, tile_visualization=args.tile_visualization, zscale=args.zscale)
 
 
 if __name__ == "__main__":

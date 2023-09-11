@@ -53,19 +53,22 @@ class VisualizeGpx:
                 self.fig, (self.ax_elev, self.ax_map) = plt.subplots(nrows=2, num=self.analyzer.filename)
                 self.fig.subplots_adjust(left=0.08, bottom=0.08, right=0.93, top=0.93)
                 self.ax_vert_speed = None
-        if self.ax_vert_speed is not None:
+        if self.analyzer.has_time:
             self.ax_power = self.ax_vert_speed.twinx()
             self.ax_elev.sharex(self.ax_vert_speed)
             self.ax_vert_speed.set_ylabel("cm/s vertical")
             self.ax_power.set_ylabel("W/kg")
             self.ax_power.set_title("power / vertical speed")
+            self.ax_elev.set_title("elevation / speed")
+            self.ax_speed = self.ax_elev.twinx()
+            self.ax_speed.set_ylabel("km/h")
+            self.ax_elev.set_xlabel("min")
         else:
             self.ax_power = None
-        self.ax_speed = self.ax_elev.twinx()
-        self.ax_speed.set_ylabel("km/h")
-        self.ax_elev.set_title("elevation / speed")
+            self.ax_elev.set_title("elevation")
+            self.ax_elev.set_xlabel("km")
+            self.ax_speed = None
         self.ax_elev.set_ylabel("m above sea")
-        self.ax_elev.set_xlabel("min")
         self.ax_map.set_title("map")
         self.ax_map.set_xlabel("km")
         self.ax_map.set_ylabel("km")
@@ -129,7 +132,7 @@ class VisualizeGpx:
         self.ax_map.set_facecolor("#404040")
         self.ax_map.plot(self.x, self.y, color="white", zorder=-2, linewidth=3.2)
         if self.analyzer.has_time:
-            self.ax_map.scatter(
+            scatter = self.ax_map.scatter(
                     (self.x[1:]+self.x[:-1])/2,
                     (self.y[1:]+self.y[:-1])/2,
                     c=self.analyzer.vertical_speed_smooth,
@@ -137,8 +140,10 @@ class VisualizeGpx:
                     norm=plt.Normalize(-conf.VSPEED_NORM, conf.VSPEED_NORM),
                     s=2,
                     zorder=-1)
+            self.cbar = self.fig.colorbar(scatter, ax=self.ax_map)
+            self.cbar.set_label("vertical speed (m/s)")
         else:
-            self.ax_map.scatter(
+            scatter = self.ax_map.scatter(
                     (self.x[1:]+self.x[:-1])/2,
                     (self.y[1:]+self.y[:-1])/2,
                     c=self.analyzer.gradient_smooth,
@@ -146,6 +151,8 @@ class VisualizeGpx:
                     norm=plt.Normalize(-conf.GRADIENT_NORM, conf.GRADIENT_NORM),
                     s=2,
                     zorder=-1)
+            self.cbar = self.fig.colorbar(scatter, ax=self.ax_map)
+            self.cbar.set_label("gradient")
         self.map_pos, = self.ax_map.plot(np.nan, np.nan, "or")
 
 
@@ -154,7 +161,7 @@ class VisualizeGpx:
             self.move_to_none()
             return
         node_index = self.xaxis_nodes.searchsorted(x)
-        if node_index > self.xaxis_nodes.size:
+        if node_index > self.xaxis_edges.size:
             self.move_to_none()
             return
         edge_index = node_index - (self.xaxis_edges[node_index-1] < x)
